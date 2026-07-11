@@ -1,40 +1,133 @@
-import { useState } from 'react';
-import { db, type ExcelRecord } from '../db';
+import { useState, useEffect } from 'react';
+import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import * as xlsx from 'xlsx';
 
 export function useExcelData() {
+  const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Auto-fetch data when DB changes
-  const records = useLiveQuery(() => db.records.toArray(), []) as ExcelRecord[] | undefined;
-  const metadata = useLiveQuery(() => db.metadata.where('key').equals('headers').first(), []);
-  
-  const headers: string[] = metadata?.value || [];
+  // Lấy danh sách project
+  const projects = useLiveQuery(() => db.projects.toArray(), []) || [];
 
-  const handleImport = async (file: File) => {
+  // Tự động chọn project đầu tiên nếu chưa chọn
+  useEffect(() => {
+    if (activeProjectId === null && projects.length > 0) {
+      setActiveProjectId(projects[0].id!);
+    } else if (projects.length === 0) {
+      setActiveProjectId(null);
+    }
+  }, [projects, activeProjectId]);
+
+  // Lấy dữ liệu của project ĐANG CHỌN
+  const dbData = useLiveQuery(async () => {
+    if (activeProjectId === null) return { records: [], metadata: undefined };
+    
+    const recs = await db.records.where({ projectId: activeProjectId }).toArray();
+    const meta = await db.metadata.where('[projectId+key]').equals([activeProjectId, 'headers']).first();
+    
+    return { records: recs, metadata: meta };
+  }, [activeProjectId]);
+
+  const isDBLoading = activeProjectId !== null && dbData === undefined;
+  const records = dbData?.records || [];
+  let headers: string[] = dbData?.metadata?.value || [];
+
+  if (headers.length === 0 && records.length > 0) {
+    headers = Object.keys(records[0]).filter(k => k !== 'id' && k !== 'projectId');
+  }
+
+  // Tiện ích phân tích file Excel
+  const parseExcelFile = async (file: File) => {
+    const buffer = await file.arrayBuffer();
+    const workbook = xlsx.read(buffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    
+    const jsonData = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
+    if (jsonData.length === 0) throw new Error("File không có dữ liệu");
+    
+    const newHeaders = Object.keys(jsonData[0]);
+    return { 
+      filename: file.name.replace(/\.[^/.]+$/, ""), // Bỏ đuôi mở rộng
+      headers: newHeaders, 
+      data: jsonData 
+    };
+  };
+
+  const createNewProject = async (name: string, newHeaders: string[], data: any[]) => {
     setLoading(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const workbook = xlsx.read(buffer, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      
-      const jsonData = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
-      
-      if (jsonData.length === 0) return;
-
-      const newHeaders = Object.keys(jsonData[0]);
-      
-      await db.transaction('rw', db.records, db.metadata, async () => {
-        await db.records.clear();
-        await db.records.bulkAdd(jsonData);
+      await db.transaction('rw', db.projects, db.records, db.metadata, async () => {
+        const projectId = await db.projects.add({ name, createdAt: Date.now() });
         
-        await db.metadata.put({ id: 1, key: 'headers', value: newHeaders });
+        const recordsWithProjectId = data.map(r => ({ ...r, projectId }));
+        await db.records.bulkAdd(recordsWithProjectId);
+        await db.metadata.add({ projectId, key: 'headers', value: newHeaders });
+        
+        setActiveProjectId(projectId as number);
       });
-    } catch (error) {
-      console.error("Import failed", error);
-      alert("Đã có lỗi khi import file Excel.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const appendToProject = async (projectId: number, newHeaders: string[], data: any[]) => {
+    setLoading(true);
+    try {
+      await db.transaction('rw', db.records, db.metadata, async () => {
+        // Hợp nhất header cũ và mới, loại bỏ trùng lặp
+        const currentMeta = await db.metadata.where('[projectId+key]').equals([projectId, 'headers']).first();
+        const currentHeaders: string[] = currentMeta?.value || [];
+        
+        const mergedHeaders = Array.from(new Set([...currentHeaders, ...newHeaders]));
+        
+        // Cập nhật lại meta headers
+        if (currentMeta) {
+          await db.metadata.update(currentMeta.id!, { value: mergedHeaders });
+        } else {
+          await db.metadata.add({ projectId, key: 'headers', value: mergedHeaders });
+        }
+        
+        // Thêm dữ liệu mới
+        const recordsWithProjectId = data.map(r => {
+          const row: any = { ...r, projectId };
+          // Đảm bảo dữ liệu mới có đủ các cột trống của dữ liệu cũ (nếu có)
+          mergedHeaders.forEach(h => {
+             if (row[h] === undefined) row[h] = "";
+          });
+          return row;
+        });
+        
+        await db.records.bulkAdd(recordsWithProjectId);
+        
+        // Cũng phải cập nhật các dòng cũ để có cột mới từ file mới (để VirtualTable render đồng nhất)
+        const newColumnsOnly = newHeaders.filter(h => !currentHeaders.includes(h));
+        if (newColumnsOnly.length > 0) {
+           await db.records.where({ projectId }).modify(record => {
+             newColumnsOnly.forEach(col => {
+                if (record[col] === undefined) record[col] = "";
+             });
+           });
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteProject = async (projectId: number) => {
+    if(!confirm("Bạn có chắc chắn muốn xóa Project này cùng toàn bộ dữ liệu?")) return;
+    setLoading(true);
+    try {
+      await db.transaction('rw', db.projects, db.records, db.metadata, async () => {
+        await db.projects.delete(projectId);
+        await db.records.where({ projectId }).delete();
+        await db.metadata.where({ projectId }).delete();
+      });
+      if (activeProjectId === projectId) {
+        setActiveProjectId(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -45,41 +138,35 @@ export function useExcelData() {
       alert("Không có dữ liệu để export!");
       return;
     }
-    
-    // Strip out the internal 'id' before exporting
     const exportData = records.map(r => {
-      const { id, ...rest } = r;
+      const { id, projectId, ...rest } = r; // bỏ id và projectId nội bộ
       return rest;
     });
 
     const worksheet = xlsx.utils.json_to_sheet(exportData, { header: headers });
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, worksheet, "Data");
-    
     xlsx.writeFile(workbook, 'export.xlsx');
   };
 
   const handleAddColumn = async (columnName: string) => {
+    if (!activeProjectId) return;
     if (!columnName || headers.includes(columnName)) {
       alert("Tên cột không hợp lệ hoặc đã tồn tại.");
       return;
     }
-    
     setLoading(true);
     try {
       const newHeaders = [...headers, columnName];
-      
       await db.transaction('rw', db.records, db.metadata, async () => {
-        // Update headers
-        await db.metadata.put({ id: 1, key: 'headers', value: newHeaders });
-        
-        // Update all records to have the new column
-        await db.records.toCollection().modify(record => {
+        const meta = await db.metadata.where('[projectId+key]').equals([activeProjectId, 'headers']).first();
+        if (meta) {
+           await db.metadata.update(meta.id!, { value: newHeaders });
+        }
+        await db.records.where({ projectId: activeProjectId }).modify(record => {
           record[columnName] = "";
         });
       });
-    } catch (error) {
-       console.error("Add column failed", error);
     } finally {
       setLoading(false);
     }
@@ -89,23 +176,21 @@ export function useExcelData() {
     await db.records.update(id, { [key]: value });
   };
 
-  const clearData = async () => {
-    if(confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu?")) {
-        await db.transaction('rw', db.records, db.metadata, async () => {
-            await db.records.clear();
-            await db.metadata.clear();
-        });
-    }
-  }
-
   return {
-    records: records || [],
+    projects,
+    activeProjectId,
+    setActiveProjectId,
+    records,
     headers,
     loading,
-    handleImport,
+    setLoading,
+    isDBLoading,
+    parseExcelFile,
+    createNewProject,
+    appendToProject,
+    deleteProject,
     handleExport,
     handleAddColumn,
-    updateRecord,
-    clearData
+    updateRecord
   };
 }
