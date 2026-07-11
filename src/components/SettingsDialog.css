@@ -57,18 +57,23 @@
 /* Card Styling */
 .settings-card {
   background-color: var(--bg-surface);
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.settings-card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+.settings-card .btn {
+  width: 100%;
 }
+
+.settings-card .action-buttons .btn {
+  flex: 1;
+}
+
+
 
 .card-header {
   padding: 1.25rem 1.25rem 0.75rem 1.25rem;
@@ -128,42 +133,6 @@
   margin-top: auto; /* Push to bottom of card */
 }
 
-.settings-btn {
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex: 1;
-  white-space: nowrap;
-}
-
-.settings-btn.primary {
-  background-color: var(--primary-color);
-  color: white;
-}
-.settings-btn.primary:hover { background-color: var(--primary-hover); }
-
-.settings-btn.outline {
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-}
-.settings-btn.outline:hover { background-color: var(--bg-color); }
-
-.settings-btn.success {
-  background-color: var(--secondary-color);
-  color: white;
-  margin-top: auto;
-}
-.settings-btn.success:hover { background-color: var(--secondary-hover); }
-
 /* Danger Card */
 .danger-card {
   border-color: var(--danger-color);
@@ -174,9 +143,6 @@
   color: var(--danger-color) !important;
 }
 
-.settings-btn.danger {
-  background-color: var(--danger-color);
-  color: white;
+.danger-card .btn {
   margin-top: auto;
 }
-.settings-btn.danger:hover { background-color: var(--danger-hover); }

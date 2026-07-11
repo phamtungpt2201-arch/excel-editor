@@ -7,6 +7,7 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { GlobalSearch } from './components/GlobalSearch';
 import { AddDialog } from './components/AddDialog';
 import { TimelineDrawer } from './components/TimelineDrawer';
+import { HelpDialog } from './components/HelpDialog';
 import { useExcelData } from './hooks/useExcelData';
 import { db } from './db';
 
@@ -48,6 +49,7 @@ function App() {
   } | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [prioritizedColumn, setPrioritizedColumn] = useState<string | null>(null);
@@ -167,6 +169,7 @@ function App() {
         onDeleteProject={deleteProject}
         onRenameProject={updateProjectName}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenHelp={() => setIsHelpOpen(true)}
         onAddProjectFromExcel={handleAddProjectFromExcel}
       />
       
@@ -244,6 +247,10 @@ function App() {
           }}
           onClose={() => setIsSettingsOpen(false)}
         />
+      )}
+
+      {isHelpOpen && (
+        <HelpDialog onClose={() => setIsHelpOpen(false)} />
       )}
       
       <GlobalSearch 

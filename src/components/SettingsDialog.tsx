@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, Download, Upload, FileSpreadsheet, Trash2 } from 'lucide-react';
 import './SettingsDialog.css';
 
 interface SettingsDialogProps {
@@ -70,11 +70,11 @@ export function SettingsDialog({
             <div className="card-body">
               <p className="card-desc">Bảo vệ dữ liệu của bạn bằng cách tải file Backup (.json) về máy tính.</p>
               <div className="action-buttons">
-                <button className="settings-btn primary" onClick={onExportBackup}>
-                  📥 Sao lưu (Backup)
+                <button className="btn btn-primary" onClick={onExportBackup}>
+                  <Download size={16} /> Sao lưu (Backup)
                 </button>
-                <button className="settings-btn outline" onClick={() => fileInputRef.current?.click()}>
-                  📤 Khôi phục (Restore)
+                <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>
+                  <Upload size={16} /> Khôi phục (Restore)
                 </button>
                 <input 
                   type="file" 
@@ -94,8 +94,8 @@ export function SettingsDialog({
             </div>
             <div className="card-body">
               <p className="card-desc">Xuất dữ liệu của Project ĐANG MỞ thành file Excel.</p>
-              <button className="settings-btn success" onClick={onExportExcel}>
-                📊 Xuất Excel Project hiện tại
+              <button className="btn btn-secondary" onClick={onExportExcel}>
+                <FileSpreadsheet size={16} /> Xuất Excel Project hiện tại
               </button>
             </div>
           </div>
@@ -107,8 +107,8 @@ export function SettingsDialog({
             </div>
             <div className="card-body">
               <p className="card-desc danger-text">Xóa sạch toàn bộ dữ liệu. Thao tác này không thể hoàn tác!</p>
-              <button className="settings-btn danger" onClick={onFactoryReset}>
-                🗑️ Xóa trắng hệ thống
+              <button className="btn btn-danger" onClick={onFactoryReset}>
+                <Trash2 size={16} /> Xóa trắng hệ thống
               </button>
             </div>
           </div>

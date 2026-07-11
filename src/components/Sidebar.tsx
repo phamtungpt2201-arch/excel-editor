@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { FileSpreadsheet, Trash2, PanelLeftClose, FolderKanban, Pencil, Check, X, Settings, Plus } from 'lucide-react';
+import { FileSpreadsheet, Trash2, PanelLeftClose, FolderKanban, Pencil, Check, X, Settings, Plus, HelpCircle } from 'lucide-react';
 import './Sidebar.css';
 import type { Project } from '../db';
 
@@ -10,10 +10,11 @@ interface SidebarProps {
   onDeleteProject: (id: number) => void;
   onRenameProject: (id: number, newName: string) => void;
   onOpenSettings: () => void;
+  onOpenHelp: () => void;
   onAddProjectFromExcel: (file: File) => void;
 }
 
-export function Sidebar({ projects, activeProjectId, onSelectProject, onDeleteProject, onRenameProject, onOpenSettings, onAddProjectFromExcel }: SidebarProps) {
+export function Sidebar({ projects, activeProjectId, onSelectProject, onDeleteProject, onRenameProject, onOpenSettings, onOpenHelp, onAddProjectFromExcel }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
@@ -145,6 +146,10 @@ export function Sidebar({ projects, activeProjectId, onSelectProject, onDeletePr
       </div>
       
       <div className="sidebar-footer">
+        <button className="sidebar-icon-btn settings" onClick={onOpenHelp} title="Hướng dẫn sử dụng">
+          <HelpCircle size={20} className="settings-icon" />
+          <span className="settings-text">Hướng Dẫn</span>
+        </button>
         <button className="sidebar-icon-btn settings" onClick={onOpenSettings} title="Cài đặt hệ thống">
           <Settings size={20} className="settings-icon" />
           <span className="settings-text">Cài Đặt</span>
