@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { db } from '../db';
 import type { TimelineEventType } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { X, Mail, FileText, Users, DollarSign, StickyNote, Trash2, Send } from 'lucide-react';
+import { X, Mail, FileText, Users, DollarSign, StickyNote, Trash2, Send, Handshake } from 'lucide-react';
 import './TimelineDrawer.css';
 
 interface TimelineDrawerProps {
@@ -15,18 +15,20 @@ interface TimelineDrawerProps {
 
 const TYPE_ICONS: Record<TimelineEventType, React.ReactNode> = {
   email: <Mail size={20} />,
-  quote: <FileText size={20} />,
   meeting: <Users size={20} />,
-  po: <DollarSign size={20} />,
-  note: <StickyNote size={20} />
+  quote: <FileText size={20} />,
+  negotiation: <Handshake size={20} />,
+  note: <StickyNote size={20} />,
+  po: <DollarSign size={20} />
 };
 
 const TYPE_LABELS: Record<TimelineEventType, string> = {
   email: 'Email',
+  meeting: 'Họp',
   quote: 'Báo giá',
-  meeting: 'Meeting',
-  po: 'Có PO',
-  note: 'Ghi chú'
+  negotiation: 'Đàm phán',
+  note: 'Ghi chú',
+  po: 'Có PO'
 };
 
 export function TimelineDrawer({ isOpen, onClose, recordId, projectId, recordTitle }: TimelineDrawerProps) {

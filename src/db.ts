@@ -19,7 +19,7 @@ export interface AppMetadata {
   value: any;
 }
 
-export type TimelineEventType = 'email' | 'meeting' | 'quote' | 'po' | 'note';
+export type TimelineEventType = 'email' | 'meeting' | 'quote' | 'negotiation' | 'po' | 'note';
 
 export interface TimelineEvent {
   id?: number;
