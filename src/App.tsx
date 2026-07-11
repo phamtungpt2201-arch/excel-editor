@@ -97,6 +97,19 @@ function App() {
     setPendingImport(null);
   };
 
+  const handleAddProjectFromExcel = async (file: File) => {
+    setLoading(true);
+    try {
+      const parsed = await parseExcelFile(file);
+      await createNewProject(parsed.filename, parsed.headers, parsed.data);
+    } catch (error) {
+      console.error(error);
+      alert("Đã có lỗi khi đọc file Excel.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="app-layout">
       <Sidebar 
@@ -106,6 +119,7 @@ function App() {
         onDeleteProject={deleteProject}
         onRenameProject={updateProjectName}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onAddProjectFromExcel={handleAddProjectFromExcel}
       />
       
       <div className="app-container">

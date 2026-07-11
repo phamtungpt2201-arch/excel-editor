@@ -10,13 +10,15 @@ interface SidebarProps {
   onDeleteProject: (id: number) => void;
   onRenameProject: (id: number, newName: string) => void;
   onOpenSettings: () => void;
+  onAddProjectFromExcel: (file: File) => void;
 }
 
-export function Sidebar({ projects, activeProjectId, onSelectProject, onDeleteProject, onRenameProject, onOpenSettings }: SidebarProps) {
+export function Sidebar({ projects, activeProjectId, onSelectProject, onDeleteProject, onRenameProject, onOpenSettings, onAddProjectFromExcel }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (editingId !== null && inputRef.current) {
@@ -50,6 +52,14 @@ export function Sidebar({ projects, activeProjectId, onSelectProject, onDeletePr
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      onAddProjectFromExcel(e.target.files[0]);
+    }
+    // Reset file input so the same file can be selected again
+    e.target.value = '';
+  };
+
   return (
     <aside className={`app-sidebar ${isOpen ? '' : 'collapsed'}`}>
       {isOpen ? (
@@ -61,6 +71,23 @@ export function Sidebar({ projects, activeProjectId, onSelectProject, onDeletePr
             </button>
           </div>
           
+          <div className="sidebar-add-project">
+            <input 
+              type="file" 
+              accept=".xlsx, .xls" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleFileChange} 
+            />
+            <button 
+              className="add-project-btn" 
+              onClick={() => fileInputRef.current?.click()}
+              title="Thêm Project từ file Excel"
+            >
+              + Thêm Project
+            </button>
+          </div>
+
           <div className="sidebar-content">
             {projects.length === 0 ? (
               <p className="no-projects">Chưa có dự án nào. Hãy Import file Excel.</p>
