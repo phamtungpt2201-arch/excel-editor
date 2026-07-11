@@ -212,6 +212,8 @@ function App() {
               unsavedChanges={unsavedChanges}
               searchQuery={deferredSearchQuery}
               timelineCounts={timelineCounts}
+              prioritizedColumn={prioritizedColumn}
+              onSetPrioritizedColumn={setPrioritizedColumn}
               onOpenTimeline={(recordId, projectId, recordTitle) => {
                 setTimelineState({ isOpen: true, recordId, projectId, recordTitle });
               }}

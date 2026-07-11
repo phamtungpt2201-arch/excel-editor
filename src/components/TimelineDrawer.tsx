@@ -101,7 +101,7 @@ export function TimelineDrawer({ isOpen, onClose, recordId, projectId, recordTit
         <div className="timeline-header">
           <div className="timeline-header-content">
             <h3 className="timeline-header-title">{recordTitle || 'Không có tên'}</h3>
-            <p className="timeline-header-subtitle">Nhật ký & Tiến độ</p>
+            <p className="timeline-header-subtitle">Nhật ký & Tiến độ (Mới nhất xếp trên)</p>
           </div>
           <button className="timeline-close-btn" onClick={onClose}>
             <X size={20} />

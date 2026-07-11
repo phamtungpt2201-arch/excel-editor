@@ -23,6 +23,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             <ul>
               <li><strong>Ghi lại lịch sử:</strong> Bạn có thể theo dõi xem part này đã gửi báo giá lúc nào, gửi email cho ai, hay khi nào có đơn hàng (PO) mà không làm lộn xộn các ô Excel.</li>
               <li><strong>Tránh bỏ sót thông tin:</strong> Với giao diện dòng thời gian (Timeline) giống như Facebook hay Zalo, bạn dễ dàng vuốt lại xem quá trình tương tác từ cũ đến mới, thay vì phải đọc một đoạn text dài ngoằng.</li>
+              <li><strong>Chọn Tiêu đề Sự kiện (Ghim Cột):</strong> Bạn có thể bấm vào biểu tượng <strong>Cái Ghim (Pin)</strong> trên thanh tiêu đề của bất kỳ cột dữ liệu nào (ví dụ: Customer Name, Serial) để đặt cột đó làm "Cột Gốc". Tên của nó sẽ được tự động lấy làm Tiêu đề to rõ ràng khi bạn mở bảng Sự kiện, giúp bạn không bao giờ bị nhầm lẫn.</li>
               <li><strong>Tự do tuỳ chỉnh:</strong> Cột "Sự kiện" nằm tách biệt, không bị xoá hay ảnh hưởng khi bạn tải file Excel xuống hoặc nhập file mới vào.</li>
             </ul>
           </div>

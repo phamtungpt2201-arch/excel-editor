@@ -11,6 +11,8 @@ interface VirtualTableProps {
   unsavedChanges?: Record<number, Record<string, string>>;
   searchQuery?: string;
   timelineCounts?: Record<number, number>;
+  prioritizedColumn?: string | null;
+  onSetPrioritizedColumn?: (col: string | null) => void;
   onOpenTimeline?: (recordId: number, projectId: number, recordTitle: string) => void;
 }
 
@@ -85,6 +87,8 @@ const Cell = memo(({
 export function VirtualTable({ projectId, records, headers, onUpdateRecord,  unsavedChanges = {},
   searchQuery = '',
   timelineCounts = {},
+  prioritizedColumn = null,
+  onSetPrioritizedColumn,
   onOpenTimeline
 }: VirtualTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
@@ -262,13 +266,30 @@ export function VirtualTable({ projectId, records, headers, onUpdateRecord,  uns
             </div>
             {headers.map(header => {
               const width = columnWidths[header] || 150;
+              const isPrioritized = prioritizedColumn === header;
               return (
                 <div 
                   key={header} 
-                  className="table-header-cell"
-                  style={{ width: `${width}px`, minWidth: `${width}px`, flex: `0 0 ${width}px` }}
+                  className={`table-header-cell ${isPrioritized ? 'prioritized' : ''}`}
+                  style={{ width: `${width}px`, minWidth: `${width}px`, flex: `0 0 ${width}px`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '8px' }}
                 >
-                  {header}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{header}</span>
+                  <button
+                    className="priority-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSetPrioritizedColumn?.(isPrioritized ? null : header);
+                    }}
+                    title={isPrioritized ? "Bỏ ghim cột này" : "Ghim làm cột gốc (Tiêu đề cho Sự kiện)"}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
+                      color: isPrioritized ? 'var(--primary-color)' : 'var(--text-secondary)',
+                      opacity: isPrioritized ? 1 : 0.4,
+                      display: 'flex', alignItems: 'center'
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={isPrioritized ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>
+                  </button>
                   <div 
                     className="resizer" 
                     onMouseDown={(e) => handleMouseDown(e, header)}
@@ -299,7 +320,8 @@ export function VirtualTable({ projectId, records, headers, onUpdateRecord,  uns
               </div>
               <div className="table-cell event-col-cell" style={{ width: '65px', minWidth: '65px', flex: '0 0 65px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 {(() => {
-                  const hasEvent = (timelineCounts[record.id!] || 0) > 0;
+                  const eventCount = timelineCounts[record.id!] || 0;
+                  const hasEvent = eventCount > 0;
                   return (
                     <button 
                       className="btn btn-icon-only" 
@@ -309,7 +331,17 @@ export function VirtualTable({ projectId, records, headers, onUpdateRecord,  uns
                         border: hasEvent ? '1px solid var(--primary-color)' : '1px solid var(--border-color)',
                         color: hasEvent ? '#ffffff' : 'var(--text-secondary)'
                       }}
-                      onClick={() => onOpenTimeline?.(record.id!, record.projectId, String(record[headers[0]] || 'Không tên'))}
+                      onClick={() => {
+                        let titleField = prioritizedColumn;
+                        if (!titleField && headers.length > 0) {
+                          // fallback to first non-STT column
+                          titleField = headers.find(h => !['stt', 'no', 'no.'].includes(h.toLowerCase())) || headers[0];
+                        }
+                        const recordTitle = (titleField && record[titleField]) 
+                          ? String(record[titleField]) 
+                          : `ID: ${record.id}`;
+                        onOpenTimeline?.(record.id!, projectId, recordTitle);
+                      }}
                       title="Xem Nhật ký (Timeline)"
                     >
                       <BookOpen size={14} color={hasEvent ? '#ffffff' : 'var(--text-secondary)'} />
