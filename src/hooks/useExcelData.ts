@@ -29,16 +29,23 @@ export function useExcelData() {
 
   // Lấy dữ liệu của project ĐANG CHỌN
   const dbData = useLiveQuery(async () => {
-    if (activeProjectId === null) return { records: [], metadata: undefined };
+    if (activeProjectId === null) return { records: [], metadata: undefined, timelineCounts: {} };
     
     const recs = await db.records.where({ projectId: activeProjectId }).toArray();
     const meta = await db.metadata.where('[projectId+key]').equals([activeProjectId, 'headers']).first();
+    const timelines = await db.timelines.where({ projectId: activeProjectId }).toArray();
     
-    return { records: recs, metadata: meta };
+    const counts: Record<number, number> = {};
+    for (const t of timelines) {
+      counts[t.recordId] = (counts[t.recordId] || 0) + 1;
+    }
+    
+    return { records: recs, metadata: meta, timelineCounts: counts };
   }, [activeProjectId]);
 
   const isDBLoading = activeProjectId !== null && dbData === undefined;
   const records = dbData?.records || [];
+  const timelineCounts = dbData?.timelineCounts || {};
   let headers: string[] = dbData?.metadata?.value || [];
 
   if (headers.length === 0 && records.length > 0) {
@@ -244,12 +251,14 @@ export function useExcelData() {
     const allProjects = await db.projects.toArray();
     const allMetadata = await db.metadata.toArray();
     const allRecords = await db.records.toArray();
+    const allTimelines = await db.timelines.toArray();
     
     const backupData = {
-      version: 2,
+      version: 3,
       projects: allProjects,
       metadata: allMetadata,
       records: allRecords,
+      timelines: allTimelines,
     };
     
     const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
@@ -270,14 +279,16 @@ export function useExcelData() {
         throw new Error("File backup không hợp lệ.");
       }
       
-      await db.transaction('rw', db.projects, db.records, db.metadata, async () => {
+      await db.transaction('rw', db.projects, db.records, db.metadata, db.timelines, async () => {
         await db.projects.clear();
         await db.records.clear();
         await db.metadata.clear();
+        await db.timelines.clear();
         
         if (backupData.projects.length) await db.projects.bulkAdd(backupData.projects);
         if (backupData.metadata.length) await db.metadata.bulkAdd(backupData.metadata);
         if (backupData.records.length) await db.records.bulkAdd(backupData.records);
+        if (backupData.timelines && backupData.timelines.length) await db.timelines.bulkAdd(backupData.timelines);
       });
       setActiveProjectId(null);
     } catch (err) {
@@ -291,10 +302,11 @@ export function useExcelData() {
     if(!confirm("CẢNH BÁO: Hành động này sẽ XÓA SẠCH toàn bộ dữ liệu, dự án. Không thể hoàn tác. Bạn có chắc không?")) return;
     setLoading(true);
     try {
-      await db.transaction('rw', db.projects, db.records, db.metadata, async () => {
+      await db.transaction('rw', db.projects, db.records, db.metadata, db.timelines, async () => {
         await db.projects.clear();
         await db.records.clear();
         await db.metadata.clear();
+        await db.timelines.clear();
       });
       setActiveProjectId(null);
     } finally {
@@ -373,6 +385,7 @@ export function useExcelData() {
     saveChanges,
     discardChanges,
     globalSearch,
-    handleAddRow
+    handleAddRow,
+    timelineCounts
   };
 }

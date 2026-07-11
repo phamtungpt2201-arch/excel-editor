@@ -1,5 +1,6 @@
 import React, { useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { BookOpen } from 'lucide-react';
 import type { ExcelRecord } from '../db';
 
 interface VirtualTableProps {
@@ -9,6 +10,8 @@ interface VirtualTableProps {
   onUpdateRecord: (id: number, key: string, value: string) => void;
   unsavedChanges?: Record<number, Record<string, string>>;
   searchQuery?: string;
+  timelineCounts?: Record<number, number>;
+  onOpenTimeline?: (recordId: number, projectId: number, recordTitle: string) => void;
 }
 
 const Cell = memo(({ 
@@ -79,10 +82,15 @@ const Cell = memo(({
   );
 });
 
-export function VirtualTable({ projectId, records, headers, onUpdateRecord, unsavedChanges = {}, searchQuery = '' }: VirtualTableProps) {
+export function VirtualTable({ projectId, records, headers, onUpdateRecord,  unsavedChanges = {},
+  searchQuery = '',
+  timelineCounts = {},
+  onOpenTimeline
+}: VirtualTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [activeCell, setActiveCell] = React.useState<{ recordId: number, column: string, value: string } | null>(null);
   const [columnWidths, setColumnWidths] = React.useState<Record<string, number>>({});
+  const [eventFilter, setEventFilter] = React.useState<'all' | 'hasData' | 'noData'>('all');
 
   React.useEffect(() => {
     const saved = localStorage.getItem(`colWidths_proj_${projectId}`);
@@ -134,8 +142,17 @@ export function VirtualTable({ projectId, records, headers, onUpdateRecord, unsa
   const sq = searchQuery.toLowerCase().trim();
 
   const filteredRecords = React.useMemo(() => {
-    if (!sq) return records;
-    return records.filter(record => {
+    let result = records;
+
+    if (eventFilter !== 'all') {
+      result = result.filter(record => {
+        const hasData = (timelineCounts[record.id!] || 0) > 0;
+        return eventFilter === 'hasData' ? hasData : !hasData;
+      });
+    }
+
+    if (!sq) return result;
+    return result.filter(record => {
       const changes = unsavedChanges[record.id!] || {};
       for (let cIndex = 0; cIndex < headers.length; cIndex++) {
         const h = headers[cIndex];
@@ -144,7 +161,7 @@ export function VirtualTable({ projectId, records, headers, onUpdateRecord, unsa
       }
       return false;
     });
-  }, [records, sq, headers, unsavedChanges]);
+  }, [records, sq, headers, unsavedChanges, eventFilter, timelineCounts]);
 
   const rowVirtualizer = useVirtualizer({
     count: filteredRecords.length,
@@ -220,14 +237,29 @@ export function VirtualTable({ projectId, records, headers, onUpdateRecord, unsa
         <div
         className="table-inner"
         style={{
-          height: `${rowVirtualizer.getTotalSize() + 35}px`, // +35px for header
+          height: `${rowVirtualizer.getTotalSize() + 45}px`, // +45px for header
           width: 'max-content',
           minWidth: '100%',
           position: 'relative',
         }}
       >
-        <div className="table-header" style={{ position: 'sticky', top: 0, zIndex: 10, height: '35px' }}>
+        <div className="table-header" style={{ position: 'sticky', top: 0, zIndex: 10, height: '45px' }}>
             <div className="table-header-cell row-num-cell">#</div>
+            <div className="table-header-cell event-col-cell" style={{ width: '65px', minWidth: '65px', flex: '0 0 65px', padding: '0 2px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', width: '100%', height: '100%' }} title="Lọc theo sự kiện">
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: eventFilter !== 'all' ? 'var(--primary-color)' : 'inherit', whiteSpace: 'nowrap' }}>Sự kiện</div>
+                <div style={{ position: 'absolute', bottom: '4px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: `5px solid ${eventFilter !== 'all' ? 'var(--primary-color)' : 'var(--text-secondary)'}` }}></div>
+                <select 
+                  value={eventFilter} 
+                  onChange={e => setEventFilter(e.target.value as 'all' | 'hasData' | 'noData')}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="hasData">Có</option>
+                  <option value="noData">Không</option>
+                </select>
+              </div>
+            </div>
             {headers.map(header => {
               const width = columnWidths[header] || 150;
               return (
@@ -259,11 +291,31 @@ export function VirtualTable({ projectId, records, headers, onUpdateRecord, unsa
                 left: 0,
                 width: '100%',
                 height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start + 35}px)`,
+                transform: `translateY(${virtualRow.start + 45}px)`,
               }}
             >
               <div className="table-cell row-num-cell">
                 {virtualRow.index + 1}
+              </div>
+              <div className="table-cell event-col-cell" style={{ width: '65px', minWidth: '65px', flex: '0 0 65px', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                {(() => {
+                  const hasEvent = (timelineCounts[record.id!] || 0) > 0;
+                  return (
+                    <button 
+                      className="btn btn-icon-only" 
+                      style={{ 
+                        width: '28px', height: '28px', padding: 0,
+                        backgroundColor: hasEvent ? 'var(--primary-color)' : 'transparent',
+                        border: hasEvent ? '1px solid var(--primary-color)' : '1px solid var(--border-color)',
+                        color: hasEvent ? '#ffffff' : 'var(--text-secondary)'
+                      }}
+                      onClick={() => onOpenTimeline?.(record.id!, record.projectId, String(record[headers[0]] || 'Không tên'))}
+                      title="Xem Nhật ký (Timeline)"
+                    >
+                      <BookOpen size={14} color={hasEvent ? '#ffffff' : 'var(--text-secondary)'} />
+                    </button>
+                  );
+                })()}
               </div>
               {headers.map((header) => {
                 const isUnsaved = recordChanges.hasOwnProperty(header);

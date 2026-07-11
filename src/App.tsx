@@ -6,6 +6,7 @@ import { ImportDialog } from './components/ImportDialog';
 import { SettingsDialog } from './components/SettingsDialog';
 import { GlobalSearch } from './components/GlobalSearch';
 import { AddDialog } from './components/AddDialog';
+import { TimelineDrawer } from './components/TimelineDrawer';
 import { useExcelData } from './hooks/useExcelData';
 
 function App() {
@@ -35,7 +36,8 @@ function App() {
     saveChanges,
     discardChanges,
     globalSearch,
-    handleAddRow
+    handleAddRow,
+    timelineCounts
   } = useExcelData();
 
   const [pendingImport, setPendingImport] = useState<{
@@ -48,6 +50,13 @@ function App() {
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [prioritizedColumn, setPrioritizedColumn] = useState<string | null>(null);
+
+  const [timelineState, setTimelineState] = useState<{
+    isOpen: boolean;
+    recordId: number | null;
+    projectId: number | null;
+    recordTitle: string;
+  }>({ isOpen: false, recordId: null, projectId: null, recordTitle: '' });
   
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -198,6 +207,10 @@ function App() {
               onUpdateRecord={updateRecord}
               unsavedChanges={unsavedChanges}
               searchQuery={deferredSearchQuery}
+              timelineCounts={timelineCounts}
+              onOpenTimeline={(recordId, projectId, recordTitle) => {
+                setTimelineState({ isOpen: true, recordId, projectId, recordTitle });
+              }}
             />
           )}
         </main>
@@ -253,6 +266,14 @@ function App() {
         onClose={() => setIsAddDialogOpen(false)}
         onAddColumn={handleAddColumn}
         onAddRow={handleAddRow}
+      />
+
+      <TimelineDrawer
+        isOpen={timelineState.isOpen}
+        onClose={() => setTimelineState(prev => ({ ...prev, isOpen: false }))}
+        recordId={timelineState.recordId}
+        projectId={timelineState.projectId}
+        recordTitle={timelineState.recordTitle}
       />
     </div>
   );

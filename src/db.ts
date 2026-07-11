@@ -19,10 +19,22 @@ export interface AppMetadata {
   value: any;
 }
 
+export type TimelineEventType = 'email' | 'meeting' | 'quote' | 'po' | 'note';
+
+export interface TimelineEvent {
+  id?: number;
+  recordId: number; // Liên kết với ExcelRecord.id
+  projectId: number;
+  type: TimelineEventType;
+  content: string;
+  timestamp: number;
+}
+
 export class ExcelAppDB extends Dexie {
   projects!: Table<Project, number>;
   records!: Table<ExcelRecord, number>;
   metadata!: Table<AppMetadata, number>;
+  timelines!: Table<TimelineEvent, number>;
 
   constructor() {
     super('ExcelLocalDB');
@@ -54,6 +66,14 @@ export class ExcelAppDB extends Dexie {
           });
         }
       });
+    });
+
+    // Version 3: Support Timelines
+    this.version(3).stores({
+      projects: '++id, createdAt',
+      records: '++id, projectId',
+      metadata: '++id, [projectId+key]',
+      timelines: '++id, recordId, projectId, timestamp'
     });
   }
 }
