@@ -41,6 +41,7 @@ function App() {
   } | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Chặn reload trang hoặc tắt tab khi chưa lưu
   useEffect(() => {
@@ -116,6 +117,8 @@ function App() {
             onAddColumn={handleAddColumn}
             onSave={saveChanges}
             hasUnsavedChanges={hasUnsavedChanges}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
             loading={loading}
             hasData={records.length > 0}
           />
@@ -138,6 +141,7 @@ function App() {
               headers={headers}
               onUpdateRecord={updateRecord}
               unsavedChanges={unsavedChanges}
+              searchQuery={searchQuery}
             />
           )}
         </main>

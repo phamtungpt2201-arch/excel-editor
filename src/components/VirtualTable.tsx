@@ -7,6 +7,7 @@ interface VirtualTableProps {
   headers: string[];
   onUpdateRecord: (id: number, key: string, value: string) => void;
   unsavedChanges?: Record<number, Record<string, string>>;
+  searchQuery?: string;
 }
 
 const Cell = memo(({ 
@@ -14,13 +15,15 @@ const Cell = memo(({
   columnKey, 
   initialValue, 
   onUpdate,
-  isUnsaved
+  isUnsaved,
+  isSearchMatch
 }: { 
   recordId: number, 
   columnKey: string, 
   initialValue: string,
   onUpdate: (id: number, key: string, value: string) => void,
-  isUnsaved?: boolean
+  isUnsaved?: boolean,
+  isSearchMatch?: boolean
 }) => {
   const [value, setValue] = React.useState(initialValue);
 
@@ -40,6 +43,15 @@ const Cell = memo(({
     }
   };
 
+  const style: React.CSSProperties = {};
+  if (isUnsaved) {
+    style.fontWeight = 500;
+    style.color = 'var(--primary-color)';
+  }
+  if (isSearchMatch) {
+    style.color = '#000'; // Đen để tương phản với nền vàng
+  }
+
   return (
     <input
       type="text"
@@ -48,12 +60,12 @@ const Cell = memo(({
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className="table-cell-input"
-      style={isUnsaved ? { fontWeight: 500, color: 'var(--primary-color)' } : {}}
+      style={style}
     />
   );
 });
 
-export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges = {} }: VirtualTableProps) {
+export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges = {}, searchQuery = '' }: VirtualTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
@@ -62,6 +74,35 @@ export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges 
     estimateSize: () => 35, // 35px row height
     overscan: 10,
   });
+
+  const sq = searchQuery.toLowerCase().trim();
+
+  // Tự động cuộn đến kết quả đầu tiên khi search
+  React.useEffect(() => {
+    if (!sq || records.length === 0) return;
+
+    for (let rIndex = 0; rIndex < records.length; rIndex++) {
+      const record = records[rIndex];
+      const changes = unsavedChanges[record.id!] || {};
+      
+      for (let cIndex = 0; cIndex < headers.length; cIndex++) {
+        const h = headers[cIndex];
+        const val = (changes[h] !== undefined ? changes[h] : record[h]) || '';
+        
+        if (String(val).toLowerCase().includes(sq)) {
+          // Found match! Scroll to it.
+          rowVirtualizer.scrollToIndex(rIndex, { align: 'center', behavior: 'smooth' });
+          // Note: horizontal scroll is omitted for simplicity as useVirtualizer is only tracking vertical for now,
+          // but we can scroll parentRef horizontally
+          if (parentRef.current) {
+            const targetLeft = cIndex * 150;
+            parentRef.current.scrollTo({ left: targetLeft, behavior: 'smooth' });
+          }
+          return;
+        }
+      }
+    }
+  }, [sq, records, unsavedChanges, headers, rowVirtualizer]);
 
   if (headers.length === 0 || records.length === 0) {
     return (
@@ -111,18 +152,27 @@ export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges 
               {headers.map((header) => {
                 const isUnsaved = recordChanges.hasOwnProperty(header);
                 const displayValue = isUnsaved ? recordChanges[header] : (record[header] || '');
+                const strVal = String(displayValue || '');
+                const isSearchMatch = sq ? strVal.toLowerCase().includes(sq) : false;
+
+                let bgColor = isUnsaved ? 'rgba(59, 130, 246, 0.1)' : undefined;
+                if (isSearchMatch) {
+                  bgColor = '#fde047'; // Vàng tươi
+                }
+
                 return (
                   <div 
                     key={`${record.id}-${header}`} 
                     className="table-cell"
-                    style={isUnsaved ? { backgroundColor: 'rgba(59, 130, 246, 0.1)' } : {}}
+                    style={{ backgroundColor: bgColor }}
                   >
                     <Cell
                       recordId={record.id!}
                       columnKey={header}
-                      initialValue={displayValue}
+                      initialValue={strVal}
                       onUpdate={onUpdateRecord}
                       isUnsaved={isUnsaved}
+                      isSearchMatch={isSearchMatch}
                     />
                   </div>
                 );
