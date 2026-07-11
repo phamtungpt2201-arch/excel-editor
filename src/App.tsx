@@ -3,11 +3,13 @@ import { Toolbar } from './components/Toolbar';
 import { VirtualTable } from './components/VirtualTable';
 import { Sidebar } from './components/Sidebar';
 import { ImportDialog } from './components/ImportDialog';
+import { SettingsDialog } from './components/SettingsDialog';
 import { useExcelData } from './hooks/useExcelData';
 
 function App() {
   const {
     projects,
+    totalRecords,
     activeProjectId,
     setActiveProjectId,
     records,
@@ -19,13 +21,22 @@ function App() {
     createNewProject,
     appendToProject,
     deleteProject,
+    updateProjectName,
     handleExport,
     handleAddColumn,
-    updateRecord
+    updateRecord,
+    exportAllToJson,
+    importAllFromJson,
+    factoryReset
   } = useExcelData();
 
-  // Import Dialog State
-  const [pendingImport, setPendingImport] = useState<{ filename: string, headers: string[], data: any[] } | null>(null);
+  const [pendingImport, setPendingImport] = useState<{
+    filename: string,
+    headers: string[],
+    data: any[]
+  } | null>(null);
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const onFileSelected = async (file: File) => {
     setLoading(true);
@@ -46,9 +57,9 @@ function App() {
     }
   };
 
-  const handleAppend = async () => {
-    if (!pendingImport || activeProjectId === null) return;
-    await appendToProject(activeProjectId, pendingImport.headers, pendingImport.data);
+  const handleAppend = async (targetProjectId: number) => {
+    if (!pendingImport) return;
+    await appendToProject(targetProjectId, pendingImport.headers, pendingImport.data);
     setPendingImport(null);
   };
 
@@ -65,6 +76,8 @@ function App() {
         activeProjectId={activeProjectId}
         onSelectProject={setActiveProjectId}
         onDeleteProject={deleteProject}
+        onRenameProject={updateProjectName}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       
       <div className="app-container">
@@ -104,9 +117,29 @@ function App() {
       {pendingImport && (
         <ImportDialog 
           filename={pendingImport.filename}
+          projects={projects}
+          activeProjectId={activeProjectId}
           onAppend={handleAppend}
           onNew={handleCreateNew}
           onCancel={() => setPendingImport(null)}
+        />
+      )}
+
+      {isSettingsOpen && (
+        <SettingsDialog 
+          totalProjects={projects.length}
+          totalRecords={totalRecords}
+          onExportBackup={exportAllToJson}
+          onImportBackup={(file) => {
+            importAllFromJson(file);
+            setIsSettingsOpen(false);
+          }}
+          onExportExcel={handleExport}
+          onFactoryReset={() => {
+            factoryReset();
+            setIsSettingsOpen(false);
+          }}
+          onClose={() => setIsSettingsOpen(false)}
         />
       )}
     </div>

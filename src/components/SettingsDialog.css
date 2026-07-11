@@ -1,0 +1,108 @@
+.settings-dialog {
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.settings-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.settings-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 1rem;
+}
+
+.settings-section h4 {
+  font-size: 1rem;
+  color: #1e293b;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.section-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.info-label {
+  color: #64748b;
+}
+
+.info-value {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.settings-btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-btn.primary {
+  background-color: #3b82f6;
+  color: white;
+}
+.settings-btn.primary:hover { background-color: #2563eb; }
+
+.settings-btn.outline {
+  background-color: transparent;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+.settings-btn.outline:hover { background-color: #f1f5f9; }
+
+.settings-btn.success {
+  background-color: #10b981;
+  color: white;
+}
+.settings-btn.success:hover { background-color: #059669; }
+
+.danger-zone {
+  background-color: #fef2f2;
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+}
+.danger-zone h4 { color: #b91c1c; }
+.danger-zone .section-desc { color: #ef4444; }
+
+.settings-btn.danger {
+  background-color: #ef4444;
+  color: white;
+}
+.settings-btn.danger:hover { background-color: #dc2626; }

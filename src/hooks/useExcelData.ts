@@ -9,6 +9,9 @@ export function useExcelData() {
 
   // Lấy danh sách project
   const projects = useLiveQuery(() => db.projects.toArray(), []) || [];
+  
+  // Tổng số lượng bản ghi toàn hệ thống
+  const totalRecords = useLiveQuery(() => db.records.count(), []) || 0;
 
   // Tự động chọn project đầu tiên nếu chưa chọn
   useEffect(() => {
@@ -172,12 +175,80 @@ export function useExcelData() {
     }
   };
 
+  const updateProjectName = async (projectId: number, newName: string) => {
+    if (!newName.trim()) return;
+    await db.projects.update(projectId, { name: newName.trim() });
+  };
+
   const updateRecord = async (id: number, key: string, value: string) => {
     await db.records.update(id, { [key]: value });
   };
 
+  const exportAllToJson = async () => {
+    const allProjects = await db.projects.toArray();
+    const allMetadata = await db.metadata.toArray();
+    const allRecords = await db.records.toArray();
+    
+    const backupData = {
+      version: 2,
+      projects: allProjects,
+      metadata: allMetadata,
+      records: allRecords,
+    };
+    
+    const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `excel_editor_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importAllFromJson = async (file: File) => {
+    setLoading(true);
+    try {
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+      if (!backupData.projects || !backupData.records) {
+        throw new Error("File backup không hợp lệ.");
+      }
+      
+      await db.transaction('rw', db.projects, db.records, db.metadata, async () => {
+        await db.projects.clear();
+        await db.records.clear();
+        await db.metadata.clear();
+        
+        if (backupData.projects.length) await db.projects.bulkAdd(backupData.projects);
+        if (backupData.metadata.length) await db.metadata.bulkAdd(backupData.metadata);
+        if (backupData.records.length) await db.records.bulkAdd(backupData.records);
+      });
+      setActiveProjectId(null);
+    } catch (err) {
+      alert("Khôi phục thất bại: " + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const factoryReset = async () => {
+    if(!confirm("CẢNH BÁO: Hành động này sẽ XÓA SẠCH toàn bộ dữ liệu, dự án. Không thể hoàn tác. Bạn có chắc không?")) return;
+    setLoading(true);
+    try {
+      await db.transaction('rw', db.projects, db.records, db.metadata, async () => {
+        await db.projects.clear();
+        await db.records.clear();
+        await db.metadata.clear();
+      });
+      setActiveProjectId(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     projects,
+    totalRecords,
     activeProjectId,
     setActiveProjectId,
     records,
@@ -189,8 +260,12 @@ export function useExcelData() {
     createNewProject,
     appendToProject,
     deleteProject,
+    updateProjectName,
     handleExport,
     handleAddColumn,
-    updateRecord
+    updateRecord,
+    exportAllToJson,
+    importAllFromJson,
+    factoryReset
   };
 }
