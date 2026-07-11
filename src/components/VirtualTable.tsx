@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ExcelRecord } from '../db';
 
 interface VirtualTableProps {
+  projectId: number;
   records: ExcelRecord[];
   headers: string[];
   onUpdateRecord: (id: number, key: string, value: string) => void;
@@ -15,6 +16,7 @@ const Cell = memo(({
   columnKey, 
   initialValue, 
   onUpdate,
+  onActive,
   isUnsaved,
   isSearchMatch
 }: { 
@@ -22,6 +24,7 @@ const Cell = memo(({
   columnKey: string, 
   initialValue: string,
   onUpdate: (id: number, key: string, value: string) => void,
+  onActive: (id: number, key: string, value: string) => void,
   isUnsaved?: boolean,
   isSearchMatch?: boolean
 }) => {
@@ -43,21 +46,32 @@ const Cell = memo(({
     }
   };
 
+  const handleFocus = () => {
+    onActive(recordId, columnKey, value);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setValue(newVal);
+    onActive(recordId, columnKey, newVal);
+  };
+
   const style: React.CSSProperties = {};
   if (isUnsaved) {
     style.fontWeight = 500;
     style.color = 'var(--primary-color)';
   }
   if (isSearchMatch) {
-    style.color = '#000'; // Đen để tương phản với nền vàng
+    // Không làm gì cả, chỉ cần nền sáng là đủ theo yêu cầu của user
   }
 
   return (
     <input
       type="text"
       value={value}
-      onChange={(e) => setValue(e.target.value)}
+      onChange={handleChange}
       onBlur={handleBlur}
+      onFocus={handleFocus}
       onKeyDown={handleKeyDown}
       className="table-cell-input"
       style={style}
@@ -65,44 +79,96 @@ const Cell = memo(({
   );
 });
 
-export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges = {}, searchQuery = '' }: VirtualTableProps) {
+export function VirtualTable({ projectId, records, headers, onUpdateRecord, unsavedChanges = {}, searchQuery = '' }: VirtualTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const [activeCell, setActiveCell] = React.useState<{ recordId: number, column: string, value: string } | null>(null);
+  const [columnWidths, setColumnWidths] = React.useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem(`colWidths_proj_${projectId}`);
+    if (saved) {
+      try {
+        setColumnWidths(JSON.parse(saved));
+      } catch {
+        // ignore parse error
+      }
+    } else {
+      setColumnWidths({});
+    }
+  }, [projectId]);
+
+  const handleMouseDown = (e: React.MouseEvent, header: string) => {
+    e.preventDefault();
+    const startX = e.pageX;
+    const currentWidth = columnWidths[header] || 150;
+    
+    // Thêm class 'resizing' để đổi màu resizer đang kéo
+    const resizerEl = e.currentTarget as HTMLDivElement;
+    resizerEl.classList.add('resizing');
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(50, currentWidth + (moveEvent.pageX - startX));
+      setColumnWidths(prev => ({ ...prev, [header]: newWidth }));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      resizerEl.classList.remove('resizing');
+      
+      setColumnWidths(prev => {
+        const updated = { ...prev };
+        localStorage.setItem(`colWidths_proj_${projectId}`, JSON.stringify(updated));
+        return updated;
+      });
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleActiveCell = React.useCallback((id: number, key: string, val: string) => {
+    setActiveCell({ recordId: id, column: key, value: val });
+  }, []);
+
+  const sq = searchQuery.toLowerCase().trim();
+
+  const filteredRecords = React.useMemo(() => {
+    if (!sq) return records;
+    return records.filter(record => {
+      const changes = unsavedChanges[record.id!] || {};
+      for (let cIndex = 0; cIndex < headers.length; cIndex++) {
+        const h = headers[cIndex];
+        const val = (changes[h] !== undefined ? changes[h] : record[h]) || '';
+        if (String(val).toLowerCase().includes(sq)) return true;
+      }
+      return false;
+    });
+  }, [records, sq, headers, unsavedChanges]);
 
   const rowVirtualizer = useVirtualizer({
-    count: records.length,
+    count: filteredRecords.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 35, // 35px row height
     overscan: 10,
   });
 
-  const sq = searchQuery.toLowerCase().trim();
-
-  // Tự động cuộn đến kết quả đầu tiên khi search
+  // Update activeCell value if the underlying record changes (e.g. from formula bar or cell blur)
   React.useEffect(() => {
-    if (!sq || records.length === 0) return;
-
-    for (let rIndex = 0; rIndex < records.length; rIndex++) {
-      const record = records[rIndex];
-      const changes = unsavedChanges[record.id!] || {};
-      
-      for (let cIndex = 0; cIndex < headers.length; cIndex++) {
-        const h = headers[cIndex];
-        const val = (changes[h] !== undefined ? changes[h] : record[h]) || '';
-        
-        if (String(val).toLowerCase().includes(sq)) {
-          // Found match! Scroll to it.
-          rowVirtualizer.scrollToIndex(rIndex, { align: 'center', behavior: 'smooth' });
-          // Note: horizontal scroll is omitted for simplicity as useVirtualizer is only tracking vertical for now,
-          // but we can scroll parentRef horizontally
-          if (parentRef.current) {
-            const targetLeft = cIndex * 150;
-            parentRef.current.scrollTo({ left: targetLeft, behavior: 'smooth' });
-          }
-          return;
+    if (activeCell) {
+      const record = records.find(r => r.id === activeCell.recordId);
+      if (record) {
+        const changes = unsavedChanges[record.id!] || {};
+        const currentVal = (changes[activeCell.column] !== undefined ? changes[activeCell.column] : record[activeCell.column]) || '';
+        if (currentVal !== activeCell.value) {
+           // We don't auto-update activeCell.value here to avoid cursor jumping while typing in the cell,
+           // because the cell manages its own state until blur.
+           // Actually, if it's from the formula bar, activeCell is already updated.
+           // If it's from another source, we might need to sync. We'll leave it as is.
         }
       }
     }
-  }, [sq, records, unsavedChanges, headers, rowVirtualizer]);
+  }, [activeCell, unsavedChanges, records]);
 
   if (headers.length === 0 || records.length === 0) {
     return (
@@ -112,9 +178,46 @@ export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges 
     );
   }
 
+  if (filteredRecords.length === 0 && sq) {
+    return (
+      <div className="empty-state">
+        <p>Không tìm thấy kết quả phù hợp cho "{searchQuery}".</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="table-scroll-container" ref={parentRef}>
-      <div
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+      {/* Formula Bar */}
+      <div className="formula-bar" style={{ display: 'flex', padding: '8px 16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', alignItems: 'center', gap: '12px' }}>
+        <div style={{ fontStyle: 'italic', fontWeight: 'bold', color: 'var(--primary-color)', userSelect: 'none', fontSize: '1.1rem' }}>fx</div>
+        <div style={{ flex: 1, display: 'flex', background: 'var(--bg-color)', borderRadius: '24px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+          <input 
+            style={{ 
+              flex: 1, 
+              border: 'none', 
+              padding: '8px 16px', 
+              background: 'transparent', 
+              color: 'var(--text-primary)', 
+              outline: 'none',
+              fontSize: '14px'
+            }}
+          placeholder="Chọn một ô để xem và chỉnh sửa dữ liệu đầy đủ..."
+          value={activeCell ? activeCell.value : ''}
+          disabled={!activeCell}
+          onChange={(e) => {
+            if (activeCell) {
+              const newValue = e.target.value;
+              setActiveCell({ ...activeCell, value: newValue });
+              onUpdateRecord(activeCell.recordId, activeCell.column, newValue);
+            }
+          }}
+        />
+        </div>
+      </div>
+
+      <div className="table-scroll-container" ref={parentRef} style={{ flex: 1 }}>
+        <div
         className="table-inner"
         style={{
           height: `${rowVirtualizer.getTotalSize() + 35}px`, // +35px for header
@@ -125,13 +228,26 @@ export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges 
       >
         <div className="table-header" style={{ position: 'sticky', top: 0, zIndex: 10, height: '35px' }}>
             <div className="table-header-cell row-num-cell">#</div>
-            {headers.map(header => (
-                <div key={header} className="table-header-cell">{header}</div>
-            ))}
+            {headers.map(header => {
+              const width = columnWidths[header] || 150;
+              return (
+                <div 
+                  key={header} 
+                  className="table-header-cell"
+                  style={{ width: `${width}px`, minWidth: `${width}px`, flex: `0 0 ${width}px` }}
+                >
+                  {header}
+                  <div 
+                    className="resizer" 
+                    onMouseDown={(e) => handleMouseDown(e, header)}
+                  />
+                </div>
+              );
+            })}
         </div>
         
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-          const record = records[virtualRow.index];
+          const record = filteredRecords[virtualRow.index];
           const recordChanges = unsavedChanges[record.id!] || {};
           return (
             <div
@@ -155,22 +271,25 @@ export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges 
                 const strVal = String(displayValue || '');
                 const isSearchMatch = sq ? strVal.toLowerCase().includes(sq) : false;
 
-                let bgColor = isUnsaved ? 'rgba(59, 130, 246, 0.1)' : undefined;
+                let bgColor = isUnsaved ? 'var(--bg-surface-hover)' : undefined;
                 if (isSearchMatch) {
-                  bgColor = '#fde047'; // Vàng tươi
+                  bgColor = 'var(--highlight-color)';
                 }
+
+                const width = columnWidths[header] || 150;
 
                 return (
                   <div 
                     key={`${record.id}-${header}`} 
                     className="table-cell"
-                    style={{ backgroundColor: bgColor }}
+                    style={{ backgroundColor: bgColor, width: `${width}px`, minWidth: `${width}px`, flex: `0 0 ${width}px` }}
                   >
                     <Cell
                       recordId={record.id!}
                       columnKey={header}
                       initialValue={strVal}
                       onUpdate={onUpdateRecord}
+                      onActive={handleActiveCell}
                       isUnsaved={isUnsaved}
                       isSearchMatch={isSearchMatch}
                     />
@@ -181,6 +300,7 @@ export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges 
           );
         })}
       </div>
+    </div>
     </div>
   );
 }

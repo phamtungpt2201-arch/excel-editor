@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { X } from 'lucide-react';
 import './SettingsDialog.css';
 
 interface SettingsDialogProps {
@@ -31,64 +32,87 @@ export function SettingsDialog({
   return (
     <div className="dialog-overlay">
       <div className="dialog-content settings-dialog">
-        <h3>Cài Đặt & Quản Lý Dữ Liệu</h3>
-        
-        <div className="settings-section">
-          <h4>Thông tin hệ thống</h4>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">Dữ liệu lưu trữ tại:</span>
-              <span className="info-value">Local Browser (IndexedDB)</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Tổng số dự án (Projects):</span>
-              <span className="info-value">{totalProjects}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Tổng số dòng dữ liệu:</span>
-              <span className="info-value">{totalRecords.toLocaleString()} dòng</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h4>Sao lưu & Khôi phục</h4>
-          <p className="section-desc">Bảo vệ dữ liệu của bạn bằng cách tải file Backup (.json) về máy tính.</p>
-          <div className="action-buttons">
-            <button className="settings-btn primary" onClick={onExportBackup}>
-              📥 Sao lưu toàn bộ (Backup)
-            </button>
-            <button className="settings-btn outline" onClick={() => fileInputRef.current?.click()}>
-              📤 Khôi phục (Restore)
-            </button>
-            <input 
-              type="file" 
-              accept=".json" 
-              style={{ display: 'none' }} 
-              ref={fileInputRef}
-              onChange={handleFileChange}
-            />
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h4>Xuất dữ liệu</h4>
-          <p className="section-desc">Xuất dữ liệu của Project ĐANG MỞ thành file Excel.</p>
-          <button className="settings-btn success" onClick={onExportExcel}>
-            📊 Xuất Excel Project hiện tại
-          </button>
-        </div>
-
-        <div className="settings-section danger-zone">
-          <h4>Vùng Nguy Hiểm</h4>
-          <p className="section-desc">Xóa sạch toàn bộ dữ liệu. Thao tác này không thể hoàn tác!</p>
-          <button className="settings-btn danger" onClick={onFactoryReset}>
-            🗑️ Xóa trắng hệ thống
+        <div className="settings-header">
+          <h3>Cài Đặt & Quản Lý Dữ Liệu</h3>
+          <button className="close-icon-btn" onClick={onClose} title="Đóng">
+            <X size={20} />
           </button>
         </div>
         
-        <div className="dialog-actions">
-          <button className="cancel-btn" onClick={onClose}>Đóng</button>
+        <div className="settings-body settings-grid">
+          
+          {/* Card 1: System Info */}
+          <div className="settings-card">
+            <div className="card-header">
+              <h4>Thông tin hệ thống</h4>
+            </div>
+            <div className="card-body">
+              <div className="info-item">
+                <span className="info-label">Dữ liệu lưu trữ tại:</span>
+                <span className="info-value">Local Browser (IndexedDB)</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Tổng số dự án (Projects):</span>
+                <span className="info-value">{totalProjects}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Tổng số dòng dữ liệu:</span>
+                <span className="info-value">{totalRecords.toLocaleString()} dòng</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Backup & Restore */}
+          <div className="settings-card">
+            <div className="card-header">
+              <h4>Sao lưu & Khôi phục</h4>
+            </div>
+            <div className="card-body">
+              <p className="card-desc">Bảo vệ dữ liệu của bạn bằng cách tải file Backup (.json) về máy tính.</p>
+              <div className="action-buttons">
+                <button className="settings-btn primary" onClick={onExportBackup}>
+                  📥 Sao lưu (Backup)
+                </button>
+                <button className="settings-btn outline" onClick={() => fileInputRef.current?.click()}>
+                  📤 Khôi phục (Restore)
+                </button>
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  style={{ display: 'none' }} 
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Export */}
+          <div className="settings-card">
+            <div className="card-header">
+              <h4>Xuất dữ liệu</h4>
+            </div>
+            <div className="card-body">
+              <p className="card-desc">Xuất dữ liệu của Project ĐANG MỞ thành file Excel.</p>
+              <button className="settings-btn success" onClick={onExportExcel}>
+                📊 Xuất Excel Project hiện tại
+              </button>
+            </div>
+          </div>
+
+          {/* Card 4: Danger Zone */}
+          <div className="settings-card danger-card">
+            <div className="card-header">
+              <h4 className="danger-text">Vùng Nguy Hiểm</h4>
+            </div>
+            <div className="card-body">
+              <p className="card-desc danger-text">Xóa sạch toàn bộ dữ liệu. Thao tác này không thể hoàn tác!</p>
+              <button className="settings-btn danger" onClick={onFactoryReset}>
+                🗑️ Xóa trắng hệ thống
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

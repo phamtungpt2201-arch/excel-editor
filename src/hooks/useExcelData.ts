@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import * as xlsx from 'xlsx';
@@ -24,6 +24,7 @@ export function useExcelData() {
     } else if (projects.length === 0) {
       setActiveProjectId(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects, activeProjectId]);
 
   // Lấy dữ liệu của project ĐANG CHỌN
@@ -146,7 +147,7 @@ export function useExcelData() {
       return;
     }
     const exportData = records.map(r => {
-      const { id, projectId, ...rest } = r; // bỏ id và projectId nội bộ
+      const { id: _id, projectId: _pid, ...rest } = r; // bỏ id và projectId nội bộ
       return rest;
     });
 
@@ -179,12 +180,30 @@ export function useExcelData() {
     }
   };
 
+  const handleAddRow = async () => {
+    if (!activeProjectId) return;
+    setLoading(true);
+    try {
+      const newRecord: any = { projectId: activeProjectId };
+      // Khởi tạo các trường rỗng
+      headers.forEach(h => newRecord[h] = "");
+      await db.records.add(newRecord);
+      
+      // Update local state if needed? Actually records are reactive via useLiveQuery in useExcelData.
+    } catch (err) {
+      console.error(err);
+      alert("Đã xảy ra lỗi khi thêm hàng mới.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateProjectName = async (projectId: number, newName: string) => {
     if (!newName.trim()) return;
     await db.projects.update(projectId, { name: newName.trim() });
   };
 
-  const updateRecord = (id: number, key: string, value: string) => {
+  const updateRecord = useCallback((id: number, key: string, value: string) => {
     setUnsavedChanges(prev => ({
       ...prev,
       [id]: {
@@ -192,7 +211,7 @@ export function useExcelData() {
         [key]: value
       }
     }));
-  };
+  }, []);
 
   const saveChanges = async () => {
     if (!hasUnsavedChanges) return;
@@ -283,6 +302,51 @@ export function useExcelData() {
     }
   };
 
+  const globalSearch = async (keyword: string) => {
+    if (!keyword.trim()) return { projects: [], records: [] };
+    const kw = keyword.toLowerCase();
+    
+    // Search projects
+    const allProjects = await db.projects.toArray();
+    const matchedProjects = allProjects.filter(p => p.name.toLowerCase().includes(kw));
+
+    // Search records
+    const allRecords = await db.records.toArray();
+    const matchedRecords: Array<{
+      projectId: number;
+      projectName: string;
+      recordId: number;
+      column: string;
+      value: string;
+    }> = [];
+
+    const projectMap = new Map(allProjects.map(p => [p.id, p.name]));
+
+    for (const record of allRecords) {
+      const keys = Object.keys(record);
+      for (const k of keys) {
+        if (k === 'id' || k === 'projectId') continue;
+        const val = String(record[k] || '');
+        if (val.toLowerCase().includes(kw)) {
+          matchedRecords.push({
+            projectId: record.projectId,
+            projectName: projectMap.get(record.projectId) || 'Unknown',
+            recordId: record.id!,
+            column: k,
+            value: val
+          });
+          // We only take the first matched column to bring to front
+          break;
+        }
+      }
+    }
+
+    return {
+      projects: matchedProjects,
+      records: matchedRecords.slice(0, 50) // limit results for performance
+    };
+  };
+
   return {
     projects,
     totalRecords,
@@ -307,6 +371,8 @@ export function useExcelData() {
     unsavedChanges,
     hasUnsavedChanges,
     saveChanges,
-    discardChanges
+    discardChanges,
+    globalSearch,
+    handleAddRow
   };
 }

@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useDeferredValue, useMemo } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { VirtualTable } from './components/VirtualTable';
 import { Sidebar } from './components/Sidebar';
 import { ImportDialog } from './components/ImportDialog';
 import { SettingsDialog } from './components/SettingsDialog';
+import { GlobalSearch } from './components/GlobalSearch';
+import { AddDialog } from './components/AddDialog';
 import { useExcelData } from './hooks/useExcelData';
 
 function App() {
@@ -31,7 +33,9 @@ function App() {
     unsavedChanges,
     hasUnsavedChanges,
     saveChanges,
-    discardChanges
+    discardChanges,
+    globalSearch,
+    handleAddRow
   } = useExcelData();
 
   const [pendingImport, setPendingImport] = useState<{
@@ -41,7 +45,41 @@ function App() {
   } | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [prioritizedColumn, setPrioritizedColumn] = useState<string | null>(null);
+  
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  const displayHeaders = useMemo(() => {
+    if (!prioritizedColumn || !headers.includes(prioritizedColumn)) return headers;
+    return [prioritizedColumn, ...headers.filter(h => h !== prioritizedColumn)];
+  }, [headers, prioritizedColumn]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setIsGlobalSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+  
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   // Chặn reload trang hoặc tắt tab khi chưa lưu
   useEffect(() => {
@@ -124,17 +162,20 @@ function App() {
       
       <div className="app-container">
         <header className="app-header">
-          <h1>Excel Editor {activeProjectId ? `- ${projects.find(p => p.id === activeProjectId)?.name}` : ''}</h1>
+          <h1>{activeProjectId ? projects.find(p => p.id === activeProjectId)?.name : 'Excel Editor'}</h1>
           <Toolbar 
             onImport={onFileSelected}
             onExport={handleExport}
-            onAddColumn={handleAddColumn}
             onSave={saveChanges}
             hasUnsavedChanges={hasUnsavedChanges}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            onOpenGlobalSearch={() => setIsGlobalSearchOpen(true)}
+            onOpenAddDialog={() => setIsAddDialogOpen(true)}
             loading={loading}
             hasData={records.length > 0}
+            theme={theme}
+            onToggleTheme={toggleTheme}
           />
         </header>
         
@@ -151,11 +192,12 @@ function App() {
             </div>
           ) : (
             <VirtualTable 
+              projectId={activeProjectId!}
               records={records}
-              headers={headers}
+              headers={displayHeaders}
               onUpdateRecord={updateRecord}
               unsavedChanges={unsavedChanges}
-              searchQuery={searchQuery}
+              searchQuery={deferredSearchQuery}
             />
           )}
         </main>
@@ -189,6 +231,29 @@ function App() {
           onClose={() => setIsSettingsOpen(false)}
         />
       )}
+      
+      <GlobalSearch 
+        isOpen={isGlobalSearchOpen}
+        onClose={() => setIsGlobalSearchOpen(false)}
+        onSearch={globalSearch}
+        onSelectProject={(id) => {
+          setActiveProjectId(id);
+          setSearchQuery('');
+          setPrioritizedColumn(null);
+        }}
+        onSelectRecord={(projectId, column, value) => {
+          setActiveProjectId(projectId);
+          setSearchQuery(value);
+          setPrioritizedColumn(column);
+        }}
+      />
+
+      <AddDialog 
+        isOpen={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        onAddColumn={handleAddColumn}
+        onAddRow={handleAddRow}
+      />
     </div>
   );
 }
