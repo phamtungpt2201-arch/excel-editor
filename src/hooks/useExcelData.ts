@@ -6,6 +6,10 @@ import * as xlsx from 'xlsx';
 export function useExcelData() {
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  // Trạng thái lưu trữ tạm thời các ô bị chỉnh sửa
+  const [unsavedChanges, setUnsavedChanges] = useState<Record<number, Record<string, string>>>({});
+  const hasUnsavedChanges = Object.keys(unsavedChanges).length > 0;
 
   // Lấy danh sách project
   const projects = useLiveQuery(() => db.projects.toArray(), []) || [];
@@ -180,8 +184,41 @@ export function useExcelData() {
     await db.projects.update(projectId, { name: newName.trim() });
   };
 
-  const updateRecord = async (id: number, key: string, value: string) => {
-    await db.records.update(id, { [key]: value });
+  const updateRecord = (id: number, key: string, value: string) => {
+    setUnsavedChanges(prev => ({
+      ...prev,
+      [id]: {
+        ...(prev[id] || {}),
+        [key]: value
+      }
+    }));
+  };
+
+  const saveChanges = async () => {
+    if (!hasUnsavedChanges) return;
+    setLoading(true);
+    try {
+      const updates = Object.entries(unsavedChanges).map(([idStr, changes]) => ({
+        id: Number(idStr),
+        ...changes
+      }));
+      
+      await db.transaction('rw', db.records, async () => {
+        for (const update of updates) {
+           await db.records.update(update.id, update);
+        }
+      });
+      setUnsavedChanges({});
+    } catch (err) {
+      console.error("Lỗi khi lưu dữ liệu:", err);
+      alert("Đã xảy ra lỗi khi lưu dữ liệu!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const discardChanges = () => {
+    setUnsavedChanges({});
   };
 
   const exportAllToJson = async () => {
@@ -266,6 +303,10 @@ export function useExcelData() {
     updateRecord,
     exportAllToJson,
     importAllFromJson,
-    factoryReset
+    factoryReset,
+    unsavedChanges,
+    hasUnsavedChanges,
+    saveChanges,
+    discardChanges
   };
 }

@@ -1,4 +1,4 @@
-import React, { useRef, useState, memo } from 'react';
+import React, { useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ExcelRecord } from '../db';
 
@@ -6,20 +6,27 @@ interface VirtualTableProps {
   records: ExcelRecord[];
   headers: string[];
   onUpdateRecord: (id: number, key: string, value: string) => void;
+  unsavedChanges?: Record<number, Record<string, string>>;
 }
 
 const Cell = memo(({ 
   recordId, 
   columnKey, 
   initialValue, 
-  onUpdate 
+  onUpdate,
+  isUnsaved
 }: { 
   recordId: number, 
   columnKey: string, 
   initialValue: string,
-  onUpdate: (id: number, key: string, value: string) => void
+  onUpdate: (id: number, key: string, value: string) => void,
+  isUnsaved?: boolean
 }) => {
-  const [value, setValue] = useState(initialValue);
+  const [value, setValue] = React.useState(initialValue);
+
+  React.useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
 
   const handleBlur = () => {
     if (value !== initialValue) {
@@ -41,11 +48,12 @@ const Cell = memo(({
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className="table-cell-input"
+      style={isUnsaved ? { fontWeight: 500, color: 'var(--primary-color)' } : {}}
     />
   );
 });
 
-export function VirtualTable({ records, headers, onUpdateRecord }: VirtualTableProps) {
+export function VirtualTable({ records, headers, onUpdateRecord, unsavedChanges = {} }: VirtualTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
@@ -83,6 +91,7 @@ export function VirtualTable({ records, headers, onUpdateRecord }: VirtualTableP
         
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const record = records[virtualRow.index];
+          const recordChanges = unsavedChanges[record.id!] || {};
           return (
             <div
               key={virtualRow.index}
@@ -99,16 +108,25 @@ export function VirtualTable({ records, headers, onUpdateRecord }: VirtualTableP
               <div className="table-cell row-num-cell">
                 {virtualRow.index + 1}
               </div>
-              {headers.map((header) => (
-                <div key={`${record.id}-${header}`} className="table-cell">
-                  <Cell
-                    recordId={record.id!}
-                    columnKey={header}
-                    initialValue={record[header] || ''}
-                    onUpdate={onUpdateRecord}
-                  />
-                </div>
-              ))}
+              {headers.map((header) => {
+                const isUnsaved = recordChanges.hasOwnProperty(header);
+                const displayValue = isUnsaved ? recordChanges[header] : (record[header] || '');
+                return (
+                  <div 
+                    key={`${record.id}-${header}`} 
+                    className="table-cell"
+                    style={isUnsaved ? { backgroundColor: 'rgba(59, 130, 246, 0.1)' } : {}}
+                  >
+                    <Cell
+                      recordId={record.id!}
+                      columnKey={header}
+                      initialValue={displayValue}
+                      onUpdate={onUpdateRecord}
+                      isUnsaved={isUnsaved}
+                    />
+                  </div>
+                );
+              })}
             </div>
           );
         })}

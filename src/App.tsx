@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { VirtualTable } from './components/VirtualTable';
 import { Sidebar } from './components/Sidebar';
@@ -27,7 +27,11 @@ function App() {
     updateRecord,
     exportAllToJson,
     importAllFromJson,
-    factoryReset
+    factoryReset,
+    unsavedChanges,
+    hasUnsavedChanges,
+    saveChanges,
+    discardChanges
   } = useExcelData();
 
   const [pendingImport, setPendingImport] = useState<{
@@ -37,6 +41,29 @@ function App() {
   } | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Chặn reload trang hoặc tắt tab khi chưa lưu
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = ''; // Yêu cầu đối với một số trình duyệt
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Xử lý chuyển Project an toàn
+  const handleSelectProject = (projectId: number) => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm("Bạn có thay đổi chưa được lưu. Nếu chuyển trang, mọi thay đổi chưa lưu sẽ bị mất. Bạn có chắc chắn muốn tiếp tục?")) {
+        return;
+      }
+      discardChanges();
+    }
+    setActiveProjectId(projectId);
+  };
 
   const onFileSelected = async (file: File) => {
     setLoading(true);
@@ -74,7 +101,7 @@ function App() {
       <Sidebar 
         projects={projects}
         activeProjectId={activeProjectId}
-        onSelectProject={setActiveProjectId}
+        onSelectProject={handleSelectProject}
         onDeleteProject={deleteProject}
         onRenameProject={updateProjectName}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -87,7 +114,8 @@ function App() {
             onImport={onFileSelected}
             onExport={handleExport}
             onAddColumn={handleAddColumn}
-            onClear={() => {}} // Disabled clear data since deleteProject handles it
+            onSave={saveChanges}
+            hasUnsavedChanges={hasUnsavedChanges}
             loading={loading}
             hasData={records.length > 0}
           />
@@ -109,6 +137,7 @@ function App() {
               records={records}
               headers={headers}
               onUpdateRecord={updateRecord}
+              unsavedChanges={unsavedChanges}
             />
           )}
         </main>

@@ -1,16 +1,17 @@
 import React, { useRef, useState } from 'react';
-import { Upload, Download, Plus, Trash2 } from 'lucide-react';
+import { Upload, Download, Plus, Save } from 'lucide-react';
 
 interface ToolbarProps {
   onImport: (file: File) => void;
   onExport: () => void;
   onAddColumn: (name: string) => void;
-  onClear: () => void;
+  onSave: () => void;
+  hasUnsavedChanges: boolean;
   loading: boolean;
   hasData: boolean;
 }
 
-export function Toolbar({ onImport, onExport, onAddColumn, onClear, loading, hasData }: ToolbarProps) {
+export function Toolbar({ onImport, onExport, onAddColumn, onSave, hasUnsavedChanges, loading, hasData }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newColName, setNewColName] = useState('');
 
@@ -56,11 +57,12 @@ export function Toolbar({ onImport, onExport, onAddColumn, onClear, loading, has
         
         {hasData && (
              <button 
-                 className="btn btn-danger" 
-                 onClick={onClear}
-                 disabled={loading}
+                 className={`btn ${hasUnsavedChanges ? 'btn-primary' : 'btn-outline'}`} 
+                 onClick={onSave}
+                 disabled={loading || !hasUnsavedChanges}
+                 style={hasUnsavedChanges ? { backgroundColor: 'var(--secondary-color)', borderColor: 'var(--secondary-color)', color: 'white' } : {}}
              >
-               <Trash2 size={16} /> Xóa Dữ Liệu
+               <Save size={16} /> {hasUnsavedChanges ? 'Lưu Thay Đổi (*)' : 'Đã Lưu'}
              </button>
         )}
       </div>

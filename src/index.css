@@ -162,6 +162,8 @@ body {
   letter-spacing: 0.05em;
   border-right: 1px solid var(--border-color);
   min-width: 150px;
+  width: 150px;
+  flex: 0 0 150px;
   user-select: none;
 }
 
@@ -176,6 +178,8 @@ body {
 
 .table-cell {
   min-width: 150px;
+  width: 150px;
+  flex: 0 0 150px;
   border-right: 1px solid var(--border-color);
   display: flex;
   align-items: center;
