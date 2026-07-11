@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, FolderKanban, FileSpreadsheet, X } from 'lucide-react';
+import { Search, FolderKanban, FileSpreadsheet, BookOpen, X } from 'lucide-react';
 import './GlobalSearch.css';
 
 export interface GlobalSearchResult {
@@ -11,6 +11,15 @@ export interface GlobalSearchResult {
     column: string;
     value: string;
   }>;
+  timelines: Array<{
+    projectId: number;
+    projectName: string;
+    recordId: number;
+    timelineId: number;
+    type: string;
+    content: string;
+    recordTitle: string;
+  }>;
 }
 
 interface GlobalSearchProps {
@@ -19,32 +28,34 @@ interface GlobalSearchProps {
   onSearch: (keyword: string) => Promise<GlobalSearchResult>;
   onSelectProject: (projectId: number) => void;
   onSelectRecord: (projectId: number, column: string, value: string) => void;
+  onSelectTimeline: (projectId: number, recordId: number) => void;
 }
 
-export function GlobalSearch({ isOpen, onClose, onSearch, onSelectProject, onSelectRecord }: GlobalSearchProps) {
+export function GlobalSearch({ isOpen, onClose, onSearch, onSelectProject, onSelectRecord, onSelectTimeline }: GlobalSearchProps) {
   const [keyword, setKeyword] = useState('');
-  const [results, setResults] = useState<GlobalSearchResult>({ projects: [], records: [] });
+  const [results, setResults] = useState<GlobalSearchResult>({ projects: [], records: [], timelines: [] });
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const flatResults = useMemo(() => [
     ...results.projects.map(p => ({ type: 'project' as const, data: p })),
-    ...results.records.map(r => ({ type: 'record' as const, data: r }))
+    ...results.records.map(r => ({ type: 'record' as const, data: r })),
+    ...results.timelines.map(t => ({ type: 'timeline' as const, data: t }))
   ], [results]);
 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 10);
       setKeyword('');
-      setResults({ projects: [], records: [] });
+      setResults({ projects: [], records: [], timelines: [] });
       setSelectedIndex(0);
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (!keyword.trim()) {
-      setResults({ projects: [], records: [] });
+      setResults({ projects: [], records: [], timelines: [] });
       return;
     }
     
@@ -76,9 +87,12 @@ export function GlobalSearch({ isOpen, onClose, onSearch, onSelectProject, onSel
         if (selected) {
           if (selected.type === 'project') {
             onSelectProject((selected.data as any).id);
-          } else {
+          } else if (selected.type === 'record') {
             const data = selected.data as any;
             onSelectRecord(data.projectId, data.column, data.value);
+          } else if (selected.type === 'timeline') {
+            const data = selected.data as any;
+            onSelectTimeline(data.projectId, data.recordId);
           }
           onClose();
         }
@@ -86,7 +100,7 @@ export function GlobalSearch({ isOpen, onClose, onSearch, onSelectProject, onSel
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, flatResults, selectedIndex, onClose, onSelectProject, onSelectRecord]);
+  }, [isOpen, flatResults, selectedIndex, onClose, onSelectProject, onSelectRecord, onSelectTimeline]);
 
   if (!isOpen) return null;
 
@@ -155,6 +169,32 @@ export function GlobalSearch({ isOpen, onClose, onSearch, onSelectProject, onSel
                       <div className="record-details">
                         <div className="record-value">{r.value}</div>
                         <div className="record-meta">Cột "{r.column}" · Dự án "{r.projectName}"</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!loading && results.timelines.length > 0 && (
+              <div className="result-group">
+                <div className="group-title">Sự kiện</div>
+                {results.timelines.map((t) => {
+                  const globalIdx = flatResults.findIndex(item => item.type === 'timeline' && (item.data as any).timelineId === t.timelineId);
+                  return (
+                    <div 
+                      key={`timeline-${t.timelineId}`} 
+                      className={`result-item record-item ${globalIdx === selectedIndex ? 'selected' : ''}`}
+                      onClick={() => {
+                         onSelectTimeline(t.projectId, t.recordId);
+                         onClose();
+                      }}
+                      onMouseEnter={() => setSelectedIndex(globalIdx)}
+                    >
+                      <BookOpen size={16} className="icon-record" />
+                      <div className="record-details">
+                        <div className="record-value">{t.recordTitle}: {t.content || t.type}</div>
+                        <div className="record-meta">{t.type} · Dự án "{t.projectName}"</div>
                       </div>
                     </div>
                   );

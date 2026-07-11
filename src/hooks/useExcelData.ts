@@ -315,7 +315,7 @@ export function useExcelData() {
   };
 
   const globalSearch = async (keyword: string) => {
-    if (!keyword.trim()) return { projects: [], records: [] };
+    if (!keyword.trim()) return { projects: [], records: [], timelines: [] };
     const kw = keyword.toLowerCase();
     
     // Search projects
@@ -353,10 +353,44 @@ export function useExcelData() {
       }
     }
 
-    return {
-      projects: matchedProjects,
-      records: matchedRecords.slice(0, 50) // limit results for performance
-    };
+    const matchedRecordIds = new Set(matchedRecords.map(r => r.recordId));
+    const recordMap = new Map(allRecords.map(r => [r.id, r]));
+
+    // Search timelines
+    const allTimelines = await db.timelines.toArray();
+    const matchedTimelines: Array<{
+      projectId: number;
+      projectName: string;
+      recordId: number;
+      timelineId: number;
+      type: string;
+      content: string;
+      recordTitle: string;
+    }> = [];
+
+    for (const timeline of allTimelines) {
+      const val = String(timeline.content || '');
+      const record = recordMap.get(timeline.recordId);
+      let recordTitle = 'Không tên';
+      if (record) {
+         const keys = Object.keys(record).filter(k => k !== 'id' && k !== 'projectId');
+         if (keys.length > 0) recordTitle = String(record[keys[0]] || 'Không tên');
+      }
+
+      if (val.toLowerCase().includes(kw) || timeline.type.toLowerCase().includes(kw) || matchedRecordIds.has(timeline.recordId)) {
+        matchedTimelines.push({
+          projectId: timeline.projectId,
+          projectName: projectMap.get(timeline.projectId) || 'Unknown',
+          recordId: timeline.recordId,
+          timelineId: timeline.id!,
+          type: timeline.type,
+          content: val,
+          recordTitle
+        });
+      }
+    }
+
+    return { projects: matchedProjects, records: matchedRecords.slice(0, 50), timelines: matchedTimelines.slice(0, 50) };
   };
 
   return {

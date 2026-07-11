@@ -8,6 +8,7 @@ import { GlobalSearch } from './components/GlobalSearch';
 import { AddDialog } from './components/AddDialog';
 import { TimelineDrawer } from './components/TimelineDrawer';
 import { useExcelData } from './hooks/useExcelData';
+import { db } from './db';
 
 function App() {
   const {
@@ -258,6 +259,17 @@ function App() {
           setActiveProjectId(projectId);
           setSearchQuery(value);
           setPrioritizedColumn(column);
+        }}
+        onSelectTimeline={async (projectId, recordId) => {
+          setActiveProjectId(projectId);
+          setSearchQuery('');
+          setPrioritizedColumn(null);
+          // Wait for state to settle before opening drawer
+          setTimeout(async () => {
+             const record = await db.records.get(recordId);
+             const title = record ? String(record[headers[0]] || 'Không tên') : 'Nhật ký';
+             setTimelineState({ isOpen: true, recordId, projectId, recordTitle: title });
+          }, 100);
         }}
       />
 
