@@ -29,9 +29,10 @@ interface GlobalSearchProps {
   onSelectProject: (projectId: number) => void;
   onSelectRecord: (projectId: number, column: string, value: string) => void;
   onSelectTimeline: (projectId: number, recordId: number) => void;
+  placeholder?: string;
 }
 
-export function GlobalSearch({ isOpen, onClose, onSearch, onSelectProject, onSelectRecord, onSelectTimeline }: GlobalSearchProps) {
+export function GlobalSearch({ isOpen, onClose, onSearch, onSelectProject, onSelectRecord, onSelectTimeline, placeholder = "Tìm kiếm mọi thứ..." }: GlobalSearchProps) {
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState<GlobalSearchResult>({ projects: [], records: [], timelines: [] });
   const [loading, setLoading] = useState(false);
@@ -113,7 +114,7 @@ export function GlobalSearch({ isOpen, onClose, onSearch, onSelectProject, onSel
             ref={inputRef}
             type="text"
             className="global-search-input"
-            placeholder="Tìm kiếm mọi thứ..."
+            placeholder={placeholder}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
           />

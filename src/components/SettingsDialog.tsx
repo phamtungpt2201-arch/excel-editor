@@ -2,9 +2,20 @@ import { useRef } from 'react';
 import { X, Download, Upload, FileSpreadsheet, Trash2 } from 'lucide-react';
 import './SettingsDialog.css';
 
+export interface FollowUpConfig {
+  statusColumn: string;
+  dateColumn: string;
+  slaDays: number;
+  titleColumn: string;
+  subtitleColumn: string;
+  excludeStatuses: string;
+}
+
 interface SettingsDialogProps {
   totalProjects: number;
   totalRecords: number;
+  followUpConfig: FollowUpConfig;
+  onUpdateFollowUpConfig: (config: FollowUpConfig) => void;
   onExportBackup: () => void;
   onImportBackup: (file: File) => void;
   onExportExcel: () => void;
@@ -15,6 +26,8 @@ interface SettingsDialogProps {
 export function SettingsDialog({
   totalProjects,
   totalRecords,
+  followUpConfig,
+  onUpdateFollowUpConfig,
   onExportBackup,
   onImportBackup,
   onExportExcel,
@@ -58,6 +71,94 @@ export function SettingsDialog({
               <div className="info-item">
                 <span className="info-label">Tổng số dòng dữ liệu:</span>
                 <span className="info-value">{totalRecords.toLocaleString()} dòng</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Follow-up Settings */}
+          <div className="settings-card">
+            <div className="card-header">
+              <h4>Cấu hình Smart Follow-up</h4>
+            </div>
+            <div className="card-body">
+              <p className="card-desc">Thiết lập các cột dùng để nhắc việc tự động. Hệ thống sẽ bỏ qua nếu không tìm thấy cột tương ứng trong dự án.</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Cột Tiêu đề công việc</label>
+                    <input 
+                      type="text" 
+                      className="table-cell-input" 
+                      style={{ border: '1px solid var(--border-color)', borderRadius: '4px', padding: '6px 12px' }}
+                      value={followUpConfig.titleColumn || ''}
+                      onChange={e => onUpdateFollowUpConfig({ ...followUpConfig, titleColumn: e.target.value })}
+                      placeholder="VD: Part number"
+                    />
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Cột Phụ đề (Context)</label>
+                    <input 
+                      type="text" 
+                      className="table-cell-input" 
+                      style={{ border: '1px solid var(--border-color)', borderRadius: '4px', padding: '6px 12px' }}
+                      value={followUpConfig.subtitleColumn || ''}
+                      onChange={e => onUpdateFollowUpConfig({ ...followUpConfig, subtitleColumn: e.target.value })}
+                      placeholder="VD: Customer Name"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Tên cột Trạng thái</label>
+                  <input 
+                    type="text" 
+                    className="table-cell-input" 
+                    style={{ border: '1px solid var(--border-color)', borderRadius: '4px', padding: '6px 12px' }}
+                    value={followUpConfig.statusColumn}
+                    onChange={e => onUpdateFollowUpConfig({ ...followUpConfig, statusColumn: e.target.value })}
+                    placeholder="VD: Status, Trạng thái"
+                  />
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Tên cột Ngày cập nhật cuối</label>
+                  <input 
+                    type="text" 
+                    className="table-cell-input" 
+                    style={{ border: '1px solid var(--border-color)', borderRadius: '4px', padding: '6px 12px' }}
+                    value={followUpConfig.dateColumn}
+                    onChange={e => onUpdateFollowUpConfig({ ...followUpConfig, dateColumn: e.target.value })}
+                    placeholder="VD: Last update, Cập nhật lần cuối"
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Bỏ qua các Trạng thái (Đã xong)</label>
+                    <input 
+                      type="text" 
+                      className="table-cell-input" 
+                      style={{ border: '1px solid var(--border-color)', borderRadius: '4px', padding: '6px 12px' }}
+                      value={followUpConfig.excludeStatuses || ''}
+                      onChange={e => onUpdateFollowUpConfig({ ...followUpConfig, excludeStatuses: e.target.value })}
+                      placeholder="VD: Won, Closed, MP, Done (Ngăn cách bằng dấu phẩy)"
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Số ngày báo quá hạn (SLA)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      className="table-cell-input" 
+                      style={{ border: '1px solid var(--border-color)', borderRadius: '4px', padding: '6px 12px' }}
+                      value={followUpConfig.slaDays}
+                      onChange={e => onUpdateFollowUpConfig({ ...followUpConfig, slaDays: parseInt(e.target.value) || 3 })}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
